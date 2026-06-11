@@ -11,12 +11,17 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to SQLite Database
-const dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'database.sqlite');
+let dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'database.sqlite');
 
 // Ensure parent directory exists before creating the SQLite file
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+  try {
+    fs.mkdirSync(dbDir, { recursive: true });
+  } catch (err) {
+    console.warn(`Warning: Failed to create database directory ${dbDir}. Falling back to local directory. Error:`, err.message);
+    dbPath = path.join(__dirname, 'database.sqlite');
+  }
 }
 
 const db = new sqlite3.Database(dbPath, (err) => {
