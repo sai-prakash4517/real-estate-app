@@ -39,7 +39,7 @@ const formatPriceIndian = (price) => {
 };
 
 // Components
-const Navbar = ({ page, setPage }) => (
+const Navbar = ({ page, setPage, currentUser, setCurrentUser }) => (
   <nav className="navbar">
     <div className="container nav-content">
       <div className="logo" onClick={() => setPage('home')}>
@@ -52,8 +52,21 @@ const Navbar = ({ page, setPage }) => (
         <li className={page === 'admin' ? 'active' : ''} onClick={() => setPage('admin')}>Dashboard</li>
       </ul>
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <button className="btn btn-outline" onClick={() => setPage('login')} style={{ border: 'none', color: 'var(--text-color)' }}>Sign In</button>
-        <button className="btn btn-primary" onClick={() => setPage('register')}>Register</button>
+        {currentUser ? (
+          <>
+            <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-light)', marginRight: '0.5rem' }}>
+              Welcome, <strong style={{ color: 'var(--primary)' }}>{currentUser.name}</strong>!
+            </span>
+            <button className="btn btn-outline" onClick={() => { setCurrentUser(null); setPage('home'); }} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+              Sign Out
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn btn-outline" onClick={() => setPage('login')} style={{ border: 'none', color: 'var(--text-color)' }}>Sign In</button>
+            <button className="btn btn-primary" onClick={() => setPage('register')}>Register</button>
+          </>
+        )}
       </div>
     </div>
   </nav>
@@ -566,55 +579,165 @@ const PropertyDetails = ({ property, onBack }) => {
   );
 };
 
-const Login = ({ setPage }) => (
-  <div className="container py-20 fade-in" style={{ maxWidth: '400px', margin: '0 auto' }}>
-    <div className="contact-card" style={{ padding: '2.5rem' }}>
-      <h2 className="text-3xl mb-2 text-center">Welcome Back</h2>
-      <p className="text-light text-center mb-6">Sign in to your LuxEstate account</p>
-      <form onSubmit={(e) => { e.preventDefault(); setPage('home'); }}>
-        <div className="form-group">
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Email Address</label>
-          <input type="email" className="form-control" placeholder="you@example.com" required />
-        </div>
-        <div className="form-group mb-6">
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Password</label>
-          <input type="password" className="form-control" placeholder="••••••••" required />
-        </div>
-        <button className="btn btn-primary" style={{ width: '100%', marginBottom: '1.5rem' }}>Sign In</button>
-      </form>
-      <div className="text-center text-light">
-        Don't have an account? <span style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setPage('register')}>Register here</span>
-      </div>
-    </div>
-  </div>
-);
+const Login = ({ setPage, setCurrentUser }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-const Register = ({ setPage }) => (
-  <div className="container py-20 fade-in" style={{ maxWidth: '450px', margin: '0 auto' }}>
-    <div className="contact-card" style={{ padding: '2.5rem' }}>
-      <h2 className="text-3xl mb-2 text-center">Create an Account</h2>
-      <p className="text-light text-center mb-6">Join LuxEstate to save your favorite properties</p>
-      <form onSubmit={(e) => { e.preventDefault(); setPage('home'); }}>
-        <div className="form-group">
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Full Name</label>
-          <input type="text" className="form-control" placeholder="John Doe" required />
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => { throw new Error(data.error || 'Login failed') });
+        }
+        return res.json();
+      })
+      .then(data => {
+        setCurrentUser(data.user);
+        setPage('home');
+      })
+      .catch(err => {
+        setError(err.message);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  return (
+    <div className="container py-20 fade-in" style={{ maxWidth: '400px', margin: '0 auto' }}>
+      <div className="contact-card" style={{ padding: '2.5rem' }}>
+        <h2 className="text-3xl mb-2 text-center">Welcome Back</h2>
+        <p className="text-light text-center mb-6">Sign in to your LuxEstate account</p>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Email Address</label>
+            <input type="email" className="form-control" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div className="form-group mb-6">
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Password</label>
+            <input type="password" className="form-control" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+          </div>
+          <button className="btn btn-primary" style={{ width: '100%', marginBottom: '1.5rem' }} disabled={loading}>
+            {loading ? 'Signing In...' : 'Sign In'}
+          </button>
+        </form>
+
+        {error && (
+          <div style={{ 
+            marginBottom: '1rem', 
+            padding: '0.75rem 1rem', 
+            borderRadius: 'var(--radius-md)', 
+            fontSize: '0.875rem', 
+            background: '#fee2e2',
+            color: '#991b1b',
+            border: '1px solid #fca5a5'
+          }}>
+            {error}
+          </div>
+        )}
+
+        <div className="text-center text-light">
+          Don't have an account? <span style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setPage('register')}>Register here</span>
         </div>
-        <div className="form-group">
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Email Address</label>
-          <input type="email" className="form-control" placeholder="you@example.com" required />
-        </div>
-        <div className="form-group mb-6">
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Password</label>
-          <input type="password" className="form-control" placeholder="Create a password" required />
-        </div>
-        <button className="btn btn-primary" style={{ width: '100%', marginBottom: '1.5rem' }}>Register</button>
-      </form>
-      <div className="text-center text-light">
-        Already have an account? <span style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setPage('login')}>Sign In</span>
       </div>
     </div>
-  </div>
-);
+  );
+};
+
+const Register = ({ setPage }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState({ type: '', text: '' });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setStatus({ type: '', text: '' });
+    setLoading(true);
+
+    fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => { throw new Error(data.error || 'Registration failed') });
+        }
+        return res.json();
+      })
+      .then(data => {
+        setStatus({ type: 'success', text: 'Account created successfully! Redirecting to login...' });
+        setName('');
+        setEmail('');
+        setPassword('');
+        setTimeout(() => {
+          setPage('login');
+        }, 1500);
+      })
+      .catch(err => {
+        setStatus({ type: 'error', text: err.message });
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  return (
+    <div className="container py-20 fade-in" style={{ maxWidth: '450px', margin: '0 auto' }}>
+      <div className="contact-card" style={{ padding: '2.5rem' }}>
+        <h2 className="text-3xl mb-2 text-center">Create an Account</h2>
+        <p className="text-light text-center mb-6">Join LuxEstate to save your favorite properties</p>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Full Name</label>
+            <input type="text" className="form-control" placeholder="John Doe" value={name} onChange={e => setName(e.target.value)} required />
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Email Address</label>
+            <input type="email" className="form-control" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+          </div>
+          <div className="form-group mb-6">
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Password</label>
+            <input type="password" className="form-control" placeholder="Create a password" value={password} onChange={e => setPassword(e.target.value)} required />
+          </div>
+          <button className="btn btn-primary" style={{ width: '100%', marginBottom: '1.5rem' }} disabled={loading}>
+            {loading ? 'Registering...' : 'Register'}
+          </button>
+        </form>
+
+        {status.text && (
+          <div style={{ 
+            marginBottom: '1rem', 
+            padding: '0.75rem 1rem', 
+            borderRadius: 'var(--radius-md)', 
+            fontSize: '0.875rem', 
+            background: status.type === 'success' ? '#d1fae5' : '#fee2e2',
+            color: status.type === 'success' ? '#065f46' : '#991b1b',
+            border: `1px solid ${status.type === 'success' ? '#a7f3d0' : '#fca5a5'}`
+          }}>
+            {status.text}
+          </div>
+        )}
+
+        <div className="text-center text-light">
+          Already have an account? <span style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }} onClick={() => setPage('login')}>Sign In</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Admin Dashboard Component
 const AdminDashboard = ({ onBack }) => {
@@ -698,6 +821,7 @@ const App = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentUser, setCurrentUser] = useState(null);
 
   const fetchProperties = (query = '') => {
     setLoading(true);
@@ -734,12 +858,12 @@ const App = () => {
 
   return (
     <div>
-      <Navbar page={page} setPage={setPage} />
+      <Navbar page={page} setPage={setPage} currentUser={currentUser} setCurrentUser={setCurrentUser} />
       <main style={{ minHeight: 'calc(100vh - 4.5rem)' }}>
         {page === 'home' && <Home setPage={setPage} onSelect={handleSelectProperty} properties={properties} onSearch={handleSearch} />}
         {page === 'listings' && <Listings onSelect={handleSelectProperty} properties={properties} loading={loading} onSearch={handleSearch} />}
         {page === 'details' && <PropertyDetails property={selectedProperty} onBack={() => setPage('listings')} />}
-        {page === 'login' && <Login setPage={setPage} />}
+        {page === 'login' && <Login setPage={setPage} setCurrentUser={setCurrentUser} />}
         {page === 'register' && <Register setPage={setPage} />}
         {page === 'admin' && <AdminDashboard onBack={() => setPage('home')} />}
       </main>

@@ -57,6 +57,15 @@ function initializeDatabase() {
       )
     `);
 
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT
+      )
+    `);
+
     // Check if properties table is empty
     db.get("SELECT COUNT(*) as count FROM properties", [], (err, row) => {
       if (err) {
@@ -696,6 +705,56 @@ app.get('/api/messages', (req, res) => {
     }
     res.json(rows);
   });
+});
+
+// 5. User Registration
+app.post('/api/register', (req, res) => {
+  const { name, email, password } = req.body;
+  if (!name || !email || !password) {
+    res.status(400).json({ error: 'Name, email, and password are required.' });
+    return;
+  }
+
+  db.run(
+    `INSERT INTO users (name, email, password) VALUES (?, ?, ?)`,
+    [name, email, password],
+    function (err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed')) {
+          res.status(400).json({ error: 'Email is already registered.' });
+        } else {
+          res.status(500).json({ error: err.message });
+        }
+        return;
+      }
+      res.status(201).json({ id: this.lastID, message: 'User registered successfully!' });
+    }
+  );
+});
+
+// 6. User Login
+app.post('/api/login', (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400).json({ error: 'Email and password are required.' });
+    return;
+  }
+
+  db.get(
+    `SELECT id, name, email FROM users WHERE email = ? AND password = ?`,
+    [email, password],
+    (err, row) => {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+      if (!row) {
+        res.status(400).json({ error: 'Invalid email or password.' });
+        return;
+      }
+      res.json({ message: 'Login successful!', user: row });
+    }
+  );
 });
 
 // Serve frontend static files
