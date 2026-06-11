@@ -92,6 +92,25 @@ function initializeDatabase() {
         console.log('Properties table already seeded.');
       }
     });
+
+    // Check if users table is empty and seed a default test user
+    db.get("SELECT COUNT(*) as count FROM users", [], (err, row) => {
+      if (err) {
+        console.error('Error counting users:', err.message);
+        return;
+      }
+      if (row.count === 0) {
+        console.log('Seeding default test user...');
+        db.run(
+          `INSERT INTO users (name, email, password) VALUES (?, ?, ?)`,
+          ['Demo User', 'demo@test.com', 'password123'],
+          (err) => {
+            if (err) console.error('Error seeding default user:', err.message);
+            else console.log('Seeded default user (demo@test.com / password123) successfully.');
+          }
+        );
+      }
+    });
   });
 }
 
